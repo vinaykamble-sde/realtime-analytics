@@ -7,6 +7,7 @@ import { PaymentsSeedService } from './payments/payments.seed';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { CommonModule } from '../common/common.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { HealthController } from './health.controller';
 
 
 @Module({
@@ -21,6 +22,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     CommonModule,
     RealtimeModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule implements OnModuleInit {
   constructor(

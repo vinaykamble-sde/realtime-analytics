@@ -28,6 +28,8 @@ import {
 } from '../utils/alerts';
 
 export default function Page() {
+  const WS_BASE =
+    process.env.NEXT_PUBLIC_WS_BASE ?? 'http://localhost:3000/payments';
   const dispatch = useDispatch();
   const [alerts, setAlerts] = useState<AlertType[]>([]);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -44,7 +46,7 @@ export default function Page() {
 
   // WebSocket → invalidate RTK Query cache and collect events
   useEffect(() => {
-    const socket: Socket = io('http://localhost:3000/payments', {
+    const socket: Socket = io(WS_BASE, {
       transports: ['websocket'],
     });
 

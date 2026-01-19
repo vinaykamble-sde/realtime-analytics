@@ -29,6 +29,9 @@ function throttle<T extends (...args: any[]) => any>(
   };
 }
 
+const WS_BASE =
+  process.env.NEXT_PUBLIC_WS_BASE ?? 'http://localhost:3000/payments';
+
 export function EventsFeed() {
   const [events, setEvents] = useState<any[]>([]);
   const [paused, setPaused] = useState(false);
@@ -53,7 +56,7 @@ export function EventsFeed() {
   );
 
   useEffect(() => {
-    const socket: Socket = io('http://localhost:3000/payments', {
+    const socket: Socket = io(WS_BASE, {
       transports: ['websocket'],
     });
 
