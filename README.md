@@ -1,203 +1,147 @@
-# Nx TypeScript Repository
+# FinanceOps Real-Time Analytics (Nx Monorepo)
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+A real-time payment analytics dashboard built with Next.js + Redux Toolkit + RTK Query on the frontend and NestJS + MongoDB + Socket.io on the backend. It streams live payment events, shows KPIs, and renders interactive charts.
 
-✨ A repository showcasing key [Nx](https://nx.dev) features for TypeScript monorepos ✨
+## Table of Contents
+- Overview
+- Features
+- Architecture
+- Getting Started
+- Running the Apps
+- API & Contracts
+- Frontend Notes
+- Alerting & Performance
+- Project Structure
+- Testing & Linting
+- Troubleshooting
+- Future Improvements
 
-## 📦 Project Overview
+## Overview
+- **Monorepo:** Nx (integrated)  
+- **Frontend:** Next.js 16 (App Router), MUI, Recharts, Redux Toolkit + RTK Query, Socket.io client  
+- **Backend:** NestJS 11, Socket.io gateway, MongoDB via Mongoose  
+- **Real-time:** WS namespace `/payments`, invalidates RTK Query caches on updates  
+- **Shared types:** `@org/shared-types` for API/WS data models  
 
-This repository demonstrates a production-ready TypeScript monorepo with:
+## Features
+- Live metrics grid: total volume, success rate, average amount, top method, peak hour
+- Trend chart: day/week/month toggle, CSV export, full-screen view
+- Live events feed: auto-scroll with pause, clickable details modal, CSV export
+- Alerting: failure spike, volume spike, low success rate → toast notifications
+- Responsive, minimal earth-tone UI theme
 
-- **3 Publishable Packages** - Ready for NPM publishing
+## Architecture
+- **Apps**
+  - `web`: Next.js app (app router) consuming REST + WS
+  - `api`: NestJS service exposing REST + Socket.io
+- **Libs**
+  - `shared-types`: common TypeScript interfaces (PaymentEvent, PaymentMetrics, TrendData, etc.)
+  - `utils`: client-side helpers (alerts, CSV export)
+- **Data flow**
+  - REST: `GET /api/analytics/metrics`, `GET /api/analytics/trends?period=day|week|month`
+  - WS: namespace `/payments` emits `payment-event` and `metrics-update`
+  - Frontend listens to WS → updates event feed + invalidates RTK Query caches → UI refreshes
 
-  - `@org/strings` - String manipulation utilities
-  - `@org/async` - Async utility functions with retry logic
-  - `@org/colors` - Color conversion and manipulation utilities
+## Getting Started
 
-- **1 Internal Library**
-  - `@org/utils` - Shared utilities (private, not published)
+### Prerequisites
+- Node.js 18+ (recommended 20)
+- npm (bundled) or pnpm/yarn if you prefer
+- MongoDB running locally (or a reachable MongoDB URI)
 
-## 🚀 Quick Start
-
+### Install
 ```bash
-# Clone the repository
-git clone <your-fork-url>
-cd typescript-template
-
-# Install dependencies
 npm install
-
-# Build all packages
-npx nx run-many -t build
-
-# Run tests
-npx nx run-many -t test
-
-# Lint all projects
-npx nx run-many -t lint
-
-# Run everything in parallel
-npx nx run-many -t lint test build --parallel=3
-
-# Visualize the project graph
-npx nx graph
 ```
 
-## ⭐ Featured Nx Capabilities
+### Environment
+Create `.env` at repo root for the API (Nest):
+```
+MONGODB_URI=mongodb://localhost:27017/financeops
+PORT=3000            # optional, defaults to 3000
+```
+Frontend currently points to `http://localhost:3000/api` and WS `ws://localhost:3000/payments`. If you run API on another host/port, adjust those in `web/src/store/analytics.api.ts` and `web/src/components/EventsFeed.tsx`.
 
-This repository showcases several powerful Nx features:
+## Running the Apps
 
-### 1. 🔒 Module Boundaries
+Because both API and Next default to port 3000, run the web app on a different port (e.g., 4200).
 
-Enforces architectural constraints using tags. Each package has specific dependencies it can use:
-
-- `scope:shared` (utils) - Can be used by all packages
-- `scope:strings` - Can only depend on shared utilities
-- `scope:async` - Can only depend on shared utilities
-- `scope:colors` - Can only depend on shared utilities
-
-**Try it out:**
-
+From repo root (Nx inferred targets):
 ```bash
-# See the current project graph and boundaries
-npx nx graph
+# Start API (Nest + WS on :3000)
+npx nx serve api
 
-# View a specific project's details
-npx nx show project strings --web
+# In another terminal: start Web (Next dev on :4200)
+npx nx dev web --port=4200
 ```
 
-[Learn more about module boundaries →](https://nx.dev/features/enforce-module-boundaries)
-
-### 2. 🛠️ Custom Run Commands
-
-Packages can define custom commands beyond standard build/test/lint:
-
+If Nx inference ever fails, you can fallback to direct Next dev from `web/` (add `dev` script if needed):
 ```bash
-# Run the custom build-base command for strings package
-npx nx run strings:build-base
-
-# See all available targets for a project
-npx nx show project strings
+cd web
+npx next dev --port 4200
 ```
 
-[Learn more about custom run commands →](https://nx.dev/concepts/executors-and-configurations)
+Open the UI at `http://localhost:4200`.
 
-### 3. 🔧 Self-Healing CI
+## API & Contracts
+- **REST**
+  - `GET /api/analytics/metrics` → `PaymentMetrics`
+  - `GET /api/analytics/trends?period=day|week|month` → `TrendData[]`
+- **WebSocket (namespace `/payments`)**
+  - Events:
+    - `payment-event` → `PaymentEvent`
+    - `metrics-update` → `PaymentMetrics`
+- **Shared types**: see `shared-types/` for `PaymentEvent`, `PaymentMetrics`, `TrendData`.
 
-The CI pipeline includes `nx fix-ci` which automatically identifies and suggests fixes for common issues. To test it, you can make a change to `async-retry.spec.ts` so that it fails, and create a PR.
+## Frontend Notes
+- **State**: Redux Toolkit + RTK Query for metrics/trends; WS triggers cache invalidation.
+- **UI**: MUI with custom earth-tone theme (`web/src/theme/theme.tsx`), CSS baseline, responsive grid layouts.
+- **Charts**: Recharts line chart with period toggle, CSV export, full-screen dialog.
+- **Events**: Clickable rows open `EventDetailModal`; pause/resume; CSV export.
 
+## Alerting & Performance
+- Alert detectors (`web/src/utils/alerts.ts`):
+  - Failure spike (>=20% recent failures)
+  - Volume spike (>=1.5x previous volume)
+  - Low success rate (<80%)
+- Toast notifications via MUI `Snackbar` on the main page.
+- Performance:
+  - Throttled WS event batching in `EventsFeed`
+  - Memoized chart data and metric cards
+  - Minimal shadows/borders for a lightweight UI
+
+## Project Structure
+```
+api/                NestJS service (REST + WS)
+web/                Next.js app (App Router)
+  src/app/          Layouts/pages
+  src/components/   Dashboard UI (MetricsGrid, TrendChart, EventsFeed, EventDetailModal)
+  src/store/        Redux + RTK Query
+  src/theme/        MUI theme (earth tones)
+  src/utils/        CSV export + alert helpers
+shared-types/       Shared TypeScript interfaces
+utils/              Shared utilities (if extended)
+```
+
+## Testing & Linting
 ```bash
-# Run tests and see the failure
-npx nx test async
+# Lint (Nx inferred target)
+npx nx lint web
+npx nx lint api
 
-# In CI, this command provides automated fixes
-npx nx fix-ci
+# Unit tests (if/when added)
+npx nx test web
+npx nx test api
 ```
 
-[Learn more about self-healing CI →](https://nx.dev/ci/features/self-healing-ci)
+## Troubleshooting
+- **Port conflicts**: Run web on `--port 4200` (API uses 3000).
+- **Mongo connection**: Ensure `MONGODB_URI` points to a running MongoDB.
+- **WS issues**: Verify the WS namespace `/payments` is reachable (`ws://localhost:3000/payments`).
 
-### 4. 📦 Package Publishing
-
-Manage releases and publishing with Nx Release:
-
-```bash
-# Dry run to see what would be published
-npx nx release --dry-run
-
-# Version and release packages
-npx nx release
-
-# Publish only specific packages
-npx nx release publish --projects=strings,colors
-```
-
-[Learn more about Nx Release →](https://nx.dev/features/manage-releases)
-
-## 📁 Project Structure
-
-```
-├── packages/
-│   ├── strings/     [scope:strings] - String utilities (publishable)
-│   ├── async/       [scope:async]   - Async utilities (publishable)
-│   ├── colors/      [scope:colors]  - Color utilities (publishable)
-│   └── utils/       [scope:shared]  - Shared utilities (private)
-├── nx.json          - Nx configuration
-├── tsconfig.json    - TypeScript configuration
-└── eslint.config.mjs - ESLint with module boundary rules
-```
-
-## 🏷️ Understanding Tags
-
-This repository uses tags to enforce module boundaries:
-
-| Package        | Tag             | Can Import From        |
-| -------------- | --------------- | ---------------------- |
-| `@org/utils`   | `scope:shared`  | Nothing (base library) |
-| `@org/strings` | `scope:strings` | `scope:shared`         |
-| `@org/async`   | `scope:async`   | `scope:shared`         |
-| `@org/colors`  | `scope:colors`  | `scope:shared`         |
-
-The ESLint configuration enforces these boundaries, preventing circular dependencies and maintaining clean architecture.
-
-## 🧪 Testing Module Boundaries
-
-To see module boundary enforcement in action:
-
-1. Try importing `@org/colors` into `@org/strings`
-2. Run `npx nx lint strings`
-3. You'll see an error about violating module boundaries
-
-## 📚 Useful Commands
-
-```bash
-# Project exploration
-npx nx graph                                    # Interactive dependency graph
-npx nx list                                     # List installed plugins
-npx nx show project strings --web              # View project details
-
-# Development
-npx nx build strings                           # Build a specific package
-npx nx test async                              # Test a specific package
-npx nx lint colors                             # Lint a specific package
-
-# Running multiple tasks
-npx nx run-many -t build                       # Build all projects
-npx nx run-many -t test --parallel=3          # Test in parallel
-npx nx run-many -t lint test build            # Run multiple targets
-
-# Affected commands (great for CI)
-npx nx affected -t build                       # Build only affected projects
-npx nx affected -t test                        # Test only affected projects
-
-# Release management
-npx nx release --dry-run                       # Preview release changes
-npx nx release                                 # Create a new release
-```
-
-## Nx Cloud
-
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## 🔗 Learn More
-
-- [Nx Documentation](https://nx.dev)
-- [Module Boundaries](https://nx.dev/features/enforce-module-boundaries)
-- [Custom Commands](https://nx.dev/concepts/executors-and-configurations)
-- [Self-Healing CI](https://nx.dev/ci/features/self-healing-ci)
-- [Releasing Packages](https://nx.dev/features/manage-releases)
-- [Nx Cloud](https://nx.dev/ci/intro/why-nx-cloud)
-
-## 💬 Community
-
-Join the Nx community:
-
-- [Discord](https://go.nx.dev/community)
-- [X (Twitter)](https://twitter.com/nxdevtools)
-- [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [YouTube](https://www.youtube.com/@nxdevtools)
-- [Blog](https://nx.dev/blog)
+## Future Improvements
+- Add seed scripts for MongoDB.
+- Add scripts in `web/package.json` for `dev/build/start`.
+- Add CI (lint/test/build) and Docker Compose for API + Web + MongoDB.
+- Expose configurable API/WS base URLs via environment variables for the web app.
+- Add CSV/PNG export for charts, plus anomaly highlighting on the chart.
