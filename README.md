@@ -84,23 +84,6 @@ npx next dev --port 4200
 
 Open the UI at `http://localhost:4200`.
 
-## Render Deployment
-- **Services:** deploy API and Web as separate Render Web Services (keep ports the same; Render sets `PORT`).
-- **API env vars:**
-  - `MONGODB_URI` = `mongodb+srv://VK_Realtime_Analytics:<password>@vinay-kamble-dev.d47ww2z.mongodb.net/?appName=Vinay-Kamble-Dev`
-  - `PORT` = `3000` (Render will override with its own `PORT`; code uses `process.env.PORT`)
-  - `CORS_ORIGIN` = `https://<your-frontend>.onrender.com` (comma-separated list if multiple)
-- **Web env vars:**
-  - `NEXT_PUBLIC_API_BASE` = `https://<your-backend>.onrender.com/api`
-  - `NEXT_PUBLIC_WS_BASE` = `wss://<your-backend>.onrender.com/payments`
-- **API commands:**
-  - Build: `npx nx build api`
-  - Start: `node dist/api/main.js`
-- **Web commands:**
-  - Build: `npx nx build web`
-  - Start: `npx nx start web`
-- **Health check:** `GET /healthz` (for Render health checks)
-
 ## API & Contracts
 - **REST**
   - `GET /api/analytics/metrics` → `PaymentMetrics`
